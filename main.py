@@ -22,8 +22,6 @@ tracks = []
 
 app = QApplication(sys.argv)
 app.setStyle('Fusion')
-
-slider_action = False
             
 
 class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
