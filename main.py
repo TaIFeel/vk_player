@@ -1,3 +1,6 @@
+from logging import captureWarnings
+from tkinter import dialog
+from winreg import QueryReflectionKey
 import auth
 import player_vk
 import sys
@@ -8,7 +11,7 @@ import os
 import urllib
 from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
 from PyQt5.QtWidgets import QApplication, QInputDialog
-from PyQt5.QtCore import QThread, QTimer, Qt, QUrl
+from PyQt5.QtCore import QThread, QTimer, QUrl, Qt
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest
 import keyboard
 import urllib.request
@@ -16,18 +19,22 @@ import urllib.request
 
 from PyQt5.QtMultimedia import QMediaContent
 
-v = "1.0.0"
+
+v = "1.1.0"
 volume = 100
 tracks = []
 
 app = QApplication(sys.argv)
 app.setStyle('Fusion')
+
+slider_action = False
             
 
 class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
     
 
     def __init__(self):
+
         super().__init__()
         self.setupUi(self)
 
@@ -37,18 +44,33 @@ class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
 
     def go(self):
 
-        login = self.lineEdit.text()
-        password = self.lineEdit_2.text()
+        logins = self.lineEdit.text()
+        passwords = self.lineEdit_2.text()
 
-        result_music = vkapis.get_music(login, password)
-        if str(type(result_music)) == "<class 'vkaudiotoken.TokenException.TokenException'>":
-            code, ok = QInputDialog.getText(
-            self,
-            "Подтвердите номер",
-            "Мы отправили SMS с кодом на номер")
+        try:
+            result_music = vkapis.auth(logins, passwords)
 
-            if ok:
-                result_music = vkapis.get_music(login, password, code)
+        except Exception as vkapis_erros:
+            if vkapis_erros.extra['error'] == "invalid_client":
+                dialog = QtWidgets.QMessageBox.about(self, "Данные неверны.", "Логин или пароль неверен.")
+                return
+
+
+            else:
+
+                dialog = QtWidgets.QMessageBox.about(self, "Ошибка", f"{vkapis_erros.extra}")
+                return
+
+        #if str(type(result_music)) == "<class 'vkaudiotoken.TokenException.TokenException'>":
+            #code, ok = QInputDialog.getText(
+            #self,
+            #"Подтвердите номер",
+            #"Мы отправили SMS с кодом на номер")
+
+            #if ok:
+                #result_music = vkapis.get_music(login, password, code)
+
+        print(result_music)
 
 
         for i, track in enumerate(result_music['response']['items']):
@@ -59,7 +81,7 @@ class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
             "url": track["url"]}])
 
 
-        data = {"user_agent": vkapis.user_agent, "volume": 100, "token": vkapis.token, "v": v}
+        data = {"volume": 100, "token": vkapis.token, "v": v}
         with open('player_cfg.json', 'w') as f:
             json.dump(data, f)
 
@@ -80,6 +102,7 @@ class other(QThread):
         self.paused = False
         self.played_id = 0
         self.player = QtMultimedia.QMediaPlayer()
+
         self.player.durationChanged.connect(self.update)
         self.player.positionChanged.connect(self.update_pos)
         self.player.mediaStatusChanged.connect(self.m_status_triger)
@@ -163,10 +186,14 @@ class other(QThread):
 class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
     global tracks, volume
 
+
     def __init__(self):
         super().__init__()
+
+        self.keyboard = keyboard
+
+
         
-        self.hook = keyboard.on_press(self.prees_event)
         self.setupUi(self)
         self.title.setText("")
         self.artist.setText("")
@@ -198,50 +225,44 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
         self.pushButton_4.clicked.connect(self.stop_button)
         self.pushButton_5.clicked.connect(self.forward_button)
         self.pushButton_3.clicked.connect(self.rewind_button)
-  
 
+        self.play_pause_button
 
-    def prees_event(self, event):
-        if event.name == "play/pause media":
-            self.play_pause_button()
-
-        elif event.name == "stop media":
-            self.stop_button()
-
-        elif event.name == "next track":
-            self.forward_button()
-
-        elif event.name == "previous track":
-            self.rewind_button()
-
-        elif event.name == "f5":
-            a = open("player_cfg.json", "r")
-            data = json.load(a)
-            token = data['token']
-            self.tableWidget.clear()
-
-            tracks.clear()
-            user_agent = data['user_agent']
-            result_music = vkapis.get_music_token(token, user_agent)
-
-            for i, track in enumerate(result_music['response']['items']):
-                tracks.append([{"title": track['title'],
-                "artist": track['artist'],
-                "duration": track['duration'],
-                "photo": track['album']['thumb']['photo_300'],
-                "url": track["url"]}])
-
-            for i, track in enumerate(tracks):
-                tree = QtWidgets.QTreeWidgetItem(self.tableWidget)
-
-                tree.setText(0, str(i))
-                tree.setText(1, track[0]['artist'])
-                tree.setText(2, track[0]['title'])
-                tree.setText(3, str(time.strftime("%H:%M:%S", time.gmtime(track[0]['duration']))))
+        keyboard.on_press_key(-179, self.play_pause_button, suppress=True)
+        keyboard.on_press_key(-177, self.rewind_button, suppress=True)
+        keyboard.on_press_key(-176, self.forward_button, suppress=True)
+        keyboard.on_press_key(-178, self.stop_button, suppress=True)
+        keyboard.on_press_key('f5', self.update_track_list, suppress=False)
 
 
 
-    def play_pause_button(self):
+    def update_track_list(self, args = None):
+        a = open("player_cfg.json", "r")
+        data = json.load(a)
+        token = data['token']
+        self.tableWidget.clear()
+
+        tracks.clear()
+        result_music = vkapis.get_music_token(token)
+
+        for i, track in enumerate(result_music['response']['items']):
+            tracks.append([{"title": track['title'],
+            "artist": track['artist'],
+            "duration": track['duration'],
+            "photo": track['album']['thumb']['photo_300'],
+            "url": track["url"]}])
+
+        for i, track in enumerate(tracks):
+            tree = QtWidgets.QTreeWidgetItem(self.tableWidget)
+
+            tree.setText(0, str(i))
+            tree.setText(1, track[0]['artist'])
+            tree.setText(2, track[0]['title'])
+            tree.setText(3, str(time.strftime("%H:%M:%S", time.gmtime(track[0]['duration']))))
+
+
+
+    def play_pause_button(self, args = None):
         try:
             if self.thread.paused == False:
                 self.thread.player.pause()
@@ -261,7 +282,7 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
         except:
             pass
 
-    def stop_button(self):
+    def stop_button(self, args = None):
         try:
             self.thread.player.stop()
             self.thread.paused = True
@@ -273,7 +294,7 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
         except:
             pass
 
-    def rewind_button(self):
+    def rewind_button(self, args = None):
 
         if self.thread.played_id == 0:
             self.thread.played_id = len(tracks) - 1
@@ -295,7 +316,7 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
 
         self.ico.setPixmap(QtGui.QPixmap(QtGui.QImage.fromData(data.read())))
 
-    def forward_button(self):
+    def forward_button(self, args = None):
 
         if self.thread.played_id == len(tracks) - 1:
             self.thread.played_id = 0
@@ -330,9 +351,9 @@ elif exists_config == True:
     a = open("player_cfg.json", "r")
     data = json.load(a) 
     token = data['token']
-    user_agent = data['user_agent']
     volume = data["volume"]
-    result_music = vkapis.get_music_token(token, user_agent)
+    result_music = vkapis.get_music_token(token)
+    print(result_music)
 
     for i, track in enumerate(result_music['response']['items']):
         tracks.append([{"title": track['title'],
