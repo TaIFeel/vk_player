@@ -172,6 +172,9 @@ class other(QThread):
 
             self.data.ico.setPixmap(QtGui.QPixmap(QtGui.QImage.fromData(data.read())))
 
+            self.data.tableWidget.setCurrentItem(self.data.tableWidget.topLevelItem(self.played_id))
+
+
 
 
     def update_pos(self, update):
@@ -388,7 +391,7 @@ elif exists_config == True:
 
     else:
         data['v'] = v
-        
+
         with open('player_cfg.json', 'w') as f:
             json.dump(data, f)
 
