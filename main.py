@@ -1,6 +1,3 @@
-from logging import captureWarnings
-from tkinter import dialog
-from winreg import QueryReflectionKey
 import auth
 import player_vk
 import sys
@@ -20,7 +17,7 @@ import urllib.request
 from PyQt5.QtMultimedia import QMediaContent
 
 
-v = "1.1.0"
+v = "2.0"
 volume = 100
 tracks = []
 
@@ -76,7 +73,7 @@ class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
         for i, track in enumerate(result_music['response']['items']):
             tracks.append([{"title": track['title'],
             "artist": track['artist'],
-            "photo": track['album']['thumb']['photo_300'],
+            "photo": track['album']['thumb']['photo_600'],
             "duration": track['duration'], 
             "url": track["url"]}])
 
@@ -159,6 +156,8 @@ class other(QThread):
             else:
                 self.played_id += 1
 
+            print(self.player.position())
+
 
             url = QUrl.fromLocalFile(tracks[int(self.played_id)][0]['url']) # также вызов метода с параметром path
             content = QMediaContent(url) # вызов метода с параметром url
@@ -220,19 +219,20 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
         self.thread = other(self)
 
         self.tableWidget.itemDoubleClicked.connect(self.thread.start)
+        
 
         self.play_pause.clicked.connect(self.play_pause_button)
         self.pushButton_4.clicked.connect(self.stop_button)
         self.pushButton_5.clicked.connect(self.forward_button)
         self.pushButton_3.clicked.connect(self.rewind_button)
 
-        self.play_pause_button
+
 
         keyboard.on_press_key(-179, self.play_pause_button, suppress=True)
         keyboard.on_press_key(-177, self.rewind_button, suppress=True)
         keyboard.on_press_key(-176, self.forward_button, suppress=True)
         keyboard.on_press_key(-178, self.stop_button, suppress=True)
-        keyboard.on_press_key('f5', self.update_track_list, suppress=False)
+        keyboard.on_release_key('f5', self.update_track_list, suppress=False)
 
 
 
@@ -240,16 +240,20 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
         a = open("player_cfg.json", "r")
         data = json.load(a)
         token = data['token']
-        self.tableWidget.clear()
 
+        print('1')
+        self.tableWidget.clear()
+        print('2')
         tracks.clear()
+        print('3')
+
         result_music = vkapis.get_music_token(token)
 
         for i, track in enumerate(result_music['response']['items']):
             tracks.append([{"title": track['title'],
             "artist": track['artist'],
             "duration": track['duration'],
-            "photo": track['album']['thumb']['photo_300'],
+            "photo": track['album']['thumb']['photo_600'],
             "url": track["url"]}])
 
         for i, track in enumerate(tracks):
@@ -259,6 +263,7 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
             tree.setText(1, track[0]['artist'])
             tree.setText(2, track[0]['title'])
             tree.setText(3, str(time.strftime("%H:%M:%S", time.gmtime(track[0]['duration']))))
+
 
 
 
@@ -295,6 +300,18 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
             pass
 
     def rewind_button(self, args = None):
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap("assets/pause.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.play_pause.setIcon(icon)
+
+        if self.thread.player.position() >= 5000:
+            print('1')
+            print(self.thread.player.position())
+            self.duration_slider.blockSignals(True)
+            self.duration_slider.setValue(0)
+            self.duration_slider.blockSignals(False)
+            return self.thread.player.setPosition(0)
+
 
         if self.thread.played_id == 0:
             self.thread.played_id = len(tracks) - 1
@@ -317,6 +334,9 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
         self.ico.setPixmap(QtGui.QPixmap(QtGui.QImage.fromData(data.read())))
 
     def forward_button(self, args = None):
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap("assets/pause.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.play_pause.setIcon(icon)
 
         if self.thread.played_id == len(tracks) - 1:
             self.thread.played_id = 0
@@ -362,8 +382,19 @@ elif exists_config == True:
         "photo": track['album']['thumb']['photo_300'],
         "url": track["url"]}])
 
+
+    if v == data['v']:
+        pass
+
+    else:
+        data['v'] = v
+        
+        with open('player_cfg.json', 'w') as f:
+            json.dump(data, f)
+
     ex = Player()
     ex.show()
     sys.exit(app.exec_())
+
 
         
