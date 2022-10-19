@@ -1,3 +1,7 @@
+from PyQt5.QtCore import QThread, QUrl, pyqtSignal
+from PyQt5 import QtGui, QtWidgets, QtMultimedia
+from PyQt5.QtMultimedia import QMediaContent
+from PyQt5.QtWidgets import QApplication
 import auth
 import player_vk
 import sys
@@ -6,57 +10,37 @@ import time
 import json
 import os
 import urllib
-from PyQt5 import QtCore, QtGui, QtWidgets, QtMultimedia
-from PyQt5.QtWidgets import QApplication, QInputDialog
-from PyQt5.QtCore import QThread, QTimer, QUrl, Qt
-from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest
 import keyboard
 import urllib.request
 
 
-from PyQt5.QtMultimedia import QMediaContent
 
-
-v = "2.0"
+v = "2.1"
 volume = 100
 tracks = []
 
 app = QApplication(sys.argv)
 app.setStyle('Fusion')
 
-slider_action = False
             
 
 class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
-    
 
     def __init__(self):
-
         super().__init__()
         self.setupUi(self)
 
-        self.pushButton.clicked.connect(self.go)
-        self.pushButton.setShortcut("Return")
+        self.login_vk.clicked.connect(self.go)
+        self.login_vk.setShortcut("Return")
 
 
     def go(self):
 
-        logins = self.lineEdit.text()
-        passwords = self.lineEdit_2.text()
+        login = self.login.text()
+        password = self.password.text()
 
-        try:
-            result_music = vkapis.auth(logins, passwords)
+        result_music = vkapis.auth(login, password)
 
-        except Exception as vkapis_erros:
-            if vkapis_erros.extra['error'] == "invalid_client":
-                dialog = QtWidgets.QMessageBox.about(self, "Данные неверны.", "Логин или пароль неверен.")
-                return
-
-
-            else:
-
-                dialog = QtWidgets.QMessageBox.about(self, "Ошибка", f"{vkapis_erros.extra}")
-                return
 
         #if str(type(result_music)) == "<class 'vkaudiotoken.TokenException.TokenException'>":
             #code, ok = QInputDialog.getText(
@@ -67,10 +51,8 @@ class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
             #if ok:
                 #result_music = vkapis.get_music(login, password, code)
 
-        print(result_music)
 
-
-        for i, track in enumerate(result_music['response']['items']):
+        for track in result_music['response']['items']:
             tracks.append([{"title": track['title'],
             "artist": track['artist'],
             "photo": track['album']['thumb']['photo_600'],
@@ -82,8 +64,6 @@ class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
         with open('player_cfg.json', 'w') as f:
             json.dump(data, f)
 
-
-
         self.window = Player()
         self.hide()
         self.window.show()
@@ -91,48 +71,42 @@ class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
 class other(QThread):
     global tracks, volume
 
-    def __init__(self, data):
+    table_item = 0
+
+    update_duration = pyqtSignal(int)
+    update_position = pyqtSignal(int)
+    update_other_data = pyqtSignal(int)
+    update_play_data = pyqtSignal(int)
+
+
+    def __init__(self):
         super().__init__()
 
-        
-        self.data = data
         self.paused = False
         self.played_id = 0
+
+    
         self.player = QtMultimedia.QMediaPlayer()
 
         self.player.durationChanged.connect(self.update)
         self.player.positionChanged.connect(self.update_pos)
         self.player.mediaStatusChanged.connect(self.m_status_triger)
         self.player.setVolume(volume)
-        self.data.duration_slider.valueChanged.connect(self.update_slider_pos)
-        self.data.verticalSlider.valueChanged.connect(self.update_volume)
-
-
-
 
 
     def run(self):
-        url = QUrl.fromLocalFile(tracks[int(self.data.tableWidget.currentItem().text(0))][0]['url']) # также вызов метода с параметром path
-        content = QMediaContent(url) # вызов метода с параметром url
+        url = QUrl.fromLocalFile(tracks[int(self.table_item)][0]['url'])
+        content = QMediaContent(url)
         
-        self.player.setMedia(content) # опять метод
+        self.player.setMedia(content)
         self.player.play()
 
-        self.data.title.setText(tracks[int(self.data.tableWidget.currentItem().text(0))][0]['title'])
-        self.data.artist.setText(tracks[int(self.data.tableWidget.currentItem().text(0))][0]['artist'])
-
-        data = urllib.request.urlopen(tracks[int(self.data.tableWidget.currentItem().text(0))][0]['photo'])
-
-        self.data.ico.setPixmap(QtGui.QPixmap(QtGui.QImage.fromData(data.read())))
-
-        icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("assets/pause.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.data.play_pause.setIcon(icon)
-        self.played_id = int(self.data.tableWidget.currentItem().text(0))
+        self.update_play_data.emit(int(self.table_item))
+        self.played_id = int(self.table_item)
 
 
     def update(self, update):
-        self.data.duration_slider.setMaximum(update)
+        self.update_duration.emit(update)
 
     def update_slider_pos(self, update):
         self.player.setPosition(update)
@@ -156,43 +130,38 @@ class other(QThread):
             else:
                 self.played_id += 1
 
-            print(self.player.position())
-
-
-            url = QUrl.fromLocalFile(tracks[int(self.played_id)][0]['url']) # также вызов метода с параметром path
-            content = QMediaContent(url) # вызов метода с параметром url
+            url = QUrl.fromLocalFile(tracks[int(self.played_id)][0]['url'])
+            content = QMediaContent(url)
                 
-            self.player.setMedia(content) # опять метод
+            self.player.setMedia(content)
             self.player.play()
 
-            self.data.title.setText(tracks[self.played_id][0]['title'])
-            self.data.artist.setText(tracks[self.played_id][0]['artist'])
-
-            data = urllib.request.urlopen(tracks[self.played_id][0]['photo'])
-
-            self.data.ico.setPixmap(QtGui.QPixmap(QtGui.QImage.fromData(data.read())))
-
-            self.data.tableWidget.setCurrentItem(self.data.tableWidget.topLevelItem(self.played_id))
-
-
+            self.update_other_data.emit(self.played_id)
 
 
     def update_pos(self, update):
-        self.data.duration_slider.blockSignals(True)
-        self.data.duration_slider.setValue(update)
-        self.data.duration_slider.blockSignals(False)
+        self.update_position.emit(update)
 
 
-
-        
 class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
     global tracks, volume
+
+    play_key = pyqtSignal()
+    stop_key = pyqtSignal()
+    forward_key = pyqtSignal()
+    rewind_key = pyqtSignal()
+
 
 
     def __init__(self):
         super().__init__()
 
         self.keyboard = keyboard
+
+        self.play_key.connect(self.play_pause_button)
+        self.stop_key.connect(self.stop_button)
+        self.forward_key.connect(self.forward_button)
+        self.rewind_key.connect(self.rewind_button)
 
 
         
@@ -204,38 +173,94 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
 
         QtWidgets.QTreeWidget.clear(self.tableWidget)
 
-        self.tableWidget.setColumnWidth(0, 70)
-        self.tableWidget.setColumnWidth(1, 150)
-        self.tableWidget.setColumnWidth(2, 170)
-        self.tableWidget.setColumnWidth(3, 10)
-
             
         for i, track in enumerate(tracks):
             tree = QtWidgets.QTreeWidgetItem(self.tableWidget)
 
             tree.setText(0, str(i))
-            tree.setText(1, track[0]['artist'])
-            tree.setText(2, track[0]['title'])
+            tree.setText(1, track[0]['title'])
+            tree.setText(2, track[0]['artist'])
             tree.setText(3, str(time.strftime("%H:%M:%S", time.gmtime(track[0]['duration']))))
 
 
-        self.thread = other(self)
+        
 
-        self.tableWidget.itemDoubleClicked.connect(self.thread.start)
+
+        self.thread = other()
+        self.tableWidget.setCurrentItem(self.tableWidget.topLevelItem(0))
+
+
+
+        self.tableWidget.itemDoubleClicked.connect(self.start_play)
+
+        self.thread.update_duration.connect(self.duration_change)
+        self.thread.update_position.connect(self.position_change)
+        self.thread.update_other_data.connect(self.update_other_data)
+        self.thread.update_play_data.connect(self.update_play_data)
+
+        self.duration_slider.valueChanged.connect(self.thread.update_slider_pos)
+        self.verticalSlider.valueChanged.connect(self.thread.update_volume)
+
         
 
         self.play_pause.clicked.connect(self.play_pause_button)
         self.pushButton_4.clicked.connect(self.stop_button)
         self.pushButton_5.clicked.connect(self.forward_button)
         self.pushButton_3.clicked.connect(self.rewind_button)
+        self.pushButton_6.clicked.connect(self.update_track_list)
+
+        self.pushButton_6.setShortcut('F5')
 
 
 
-        keyboard.on_press_key(-179, self.play_pause_button, suppress=True)
-        keyboard.on_press_key(-177, self.rewind_button, suppress=True)
-        keyboard.on_press_key(-176, self.forward_button, suppress=True)
-        keyboard.on_press_key(-178, self.stop_button, suppress=True)
-        keyboard.on_release_key('f5', self.update_track_list, suppress=False)
+        self.keyboard.add_hotkey(-179, self.play_key.emit, args = None,  suppress=True)
+        self.keyboard.add_hotkey(-177, self.rewind_key.emit,args = None, suppress=True)
+        self.keyboard.add_hotkey(-176, self.forward_key.emit,args = None, suppress=True)
+        self.keyboard.add_hotkey(-178, self.stop_key.emit,args = None, suppress=True)
+
+
+    def start_play(self):
+        self.thread.table_item = self.tableWidget.currentItem().text(0)
+        self.thread.start()
+
+    def update_play_data(self, table_item):
+
+        print(table_item)
+        print(self.thread.table_item)
+
+        self.title.setText(tracks[int(table_item)][0]['title'])
+        self.artist.setText(tracks[int(table_item)][0]['artist'])
+
+        data = urllib.request.urlopen(tracks[int(table_item)][0]['photo'])
+
+        self.ico.setPixmap(QtGui.QPixmap(QtGui.QImage.fromData(data.read())))
+
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap("assets/pause.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.play_pause.setIcon(icon)
+
+    def duration_change(self, duration):
+        if duration == 0:
+            return print('passed')
+            
+        print(duration/1000)
+        self.duration_slider.setMaximum(duration)
+
+    def position_change(self, update):
+        self.duration_slider.blockSignals(True)
+        self.duration_slider.setValue(update)
+        self.duration_slider.blockSignals(False)
+
+    def update_other_data(self, played_id):
+        self.title.setText(tracks[played_id][0]['title'])
+        self.artist.setText(tracks[played_id][0]['artist'])
+
+        data = urllib.request.urlopen(tracks[played_id][0]['photo'])
+
+        self.ico.setPixmap(QtGui.QPixmap(QtGui.QImage.fromData(data.read())))
+        self.tableWidget.setCurrentItem(self.tableWidget.topLevelItem(played_id))
+
+
 
 
 
@@ -335,8 +360,13 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
         data = urllib.request.urlopen(tracks[self.thread.played_id][0]['photo'])
 
         self.ico.setPixmap(QtGui.QPixmap(QtGui.QImage.fromData(data.read())))
+        
+        self.tableWidget.setCurrentItem(self.tableWidget.topLevelItem(self.thread.played_id))
+
 
     def forward_button(self, args = None):
+        print(self)
+        print(args)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("assets/pause.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.play_pause.setIcon(icon)
@@ -361,6 +391,8 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
 
         self.ico.setPixmap(QtGui.QPixmap(QtGui.QImage.fromData(data.read())))
 
+        self.tableWidget.setCurrentItem(self.tableWidget.topLevelItem(self.thread.played_id))
+
 
 
 exists_config = os.path.exists("player_cfg.json")
@@ -373,18 +405,18 @@ if exists_config == False:
 elif exists_config == True:
     a = open("player_cfg.json", "r")
     data = json.load(a) 
+
     token = data['token']
     volume = data["volume"]
-    result_music = vkapis.get_music_token(token)
-    print(result_music)
 
-    for i, track in enumerate(result_music['response']['items']):
+    result_music = vkapis.get_music_token(token)
+
+    for track in result_music['response']['items']:
         tracks.append([{"title": track['title'],
         "artist": track['artist'],
         "duration": track['duration'],
         "photo": track['album']['thumb']['photo_300'],
         "url": track["url"]}])
-
 
     if v == data['v']:
         pass
@@ -400,4 +432,5 @@ elif exists_config == True:
     sys.exit(app.exec_())
 
 
-        
+else:
+    sys.exit(1)
