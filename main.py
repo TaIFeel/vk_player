@@ -22,6 +22,16 @@ tracks = []
 app = QApplication(sys.argv)
 app.setStyle('Fusion')
 
+def add_to_data_track(music_list):
+    for track in music_list['response']['items']:
+        tracks.append([{"title": track['title'],
+        "artist": track['artist'],
+        "duration": track['duration'],
+        "photo": track['album']['thumb']['photo_600'],
+        "url": track["url"]}])
+
+    print("update")
+
             
 
 class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
@@ -52,12 +62,7 @@ class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
                 #result_music = vkapis.get_music(login, password, code)
 
 
-        for track in result_music['response']['items']:
-            tracks.append([{"title": track['title'],
-            "artist": track['artist'],
-            "photo": track['album']['thumb']['photo_600'],
-            "duration": track['duration'], 
-            "url": track["url"]}])
+        add_to_data_track(result_music)
 
 
         data = {"volume": 100, "token": vkapis.token, "v": v}
@@ -277,19 +282,14 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
 
         result_music = vkapis.get_music_token(token)
 
-        for i, track in enumerate(result_music['response']['items']):
-            tracks.append([{"title": track['title'],
-            "artist": track['artist'],
-            "duration": track['duration'],
-            "photo": track['album']['thumb']['photo_600'],
-            "url": track["url"]}])
+        add_to_data_track(result_music)
 
         for i, track in enumerate(tracks):
             tree = QtWidgets.QTreeWidgetItem(self.tableWidget)
 
             tree.setText(0, str(i))
-            tree.setText(1, track[0]['artist'])
-            tree.setText(2, track[0]['title'])
+            tree.setText(1, track[0]['title'])
+            tree.setText(2, track[0]['artist'])
             tree.setText(3, str(time.strftime("%H:%M:%S", time.gmtime(track[0]['duration']))))
 
 
@@ -411,12 +411,7 @@ elif exists_config == True:
 
     result_music = vkapis.get_music_token(token)
 
-    for track in result_music['response']['items']:
-        tracks.append([{"title": track['title'],
-        "artist": track['artist'],
-        "duration": track['duration'],
-        "photo": track['album']['thumb']['photo_300'],
-        "url": track["url"]}])
+    add_to_data_track(result_music)
 
     if v == data['v']:
         pass
