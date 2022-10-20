@@ -2,4 +2,4 @@
 vk player for windows
 
 
-![изображение](https://user-images.githubusercontent.com/94287800/196599360-74ccf1c7-3efc-4fa7-970d-e68dcbfc00f1.png)
+![изображение](https://user-images.githubusercontent.com/94287800/196857389-c84ac5e8-eac2-4a8e-aa41-19e0fcafcd68.png)
