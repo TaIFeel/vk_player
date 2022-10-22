@@ -20,15 +20,11 @@ class Ui_MainWindow(object):
         MainWindow.setDockNestingEnabled(False)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
+        self.centralwidget.setStyleSheet("")
         self.tableWidget = QtWidgets.QTreeWidget(self.centralwidget)
         self.tableWidget.setGeometry(QtCore.QRect(3, 3, 506, 261))
         self.tableWidget.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.tableWidget.setAutoFillBackground(False)
-        self.tableWidget.setStyleSheet("QTableWidget::item:0{\n"
-"    color: red;\n"
-"    border: 0px;\n"
-"    padding: 5px;\n"
-"}")
         self.tableWidget.setWordWrap(True)
         self.tableWidget.setColumnCount(4)
         self.tableWidget.setObjectName("tableWidget")
@@ -62,7 +58,7 @@ class Ui_MainWindow(object):
         font.setPointSize(12)
         font.setBold(False)
         font.setUnderline(False)
-        font.setWeight(68)
+        font.setWeight(75)
         font.setStrikeOut(False)
         font.setKerning(True)
         self.title.setFont(font)
@@ -90,10 +86,13 @@ class Ui_MainWindow(object):
         font = QtGui.QFont()
         font.setPointSize(5)
         self.ico.setFont(font)
-        self.ico.setStyleSheet("")
+        self.ico.setStyleSheet("""border-radius: 25px;
+        min-height: 42px;
+        max-height: 42px;
+        min-width: 42px;
+        max-width: 42px;""")
         self.ico.setText("")
         self.ico.setTextFormat(QtCore.Qt.AutoText)
-        self.ico.setPixmap(QtGui.QPixmap("https://sun1-15.userapi.com/impf/c846121/v846121814/1ccabe/USKOlpnMlr0.jpg?size=300x0&quality=90&sign=8154aeb55eca346b6b16ebb26e2a228e&c_uniq_tag=gsIjMik4HdHDkXfRDD2kedzyQ-ovdW5P8ONDGE3raH4"))
         self.ico.setScaledContents(True)
         self.ico.setAlignment(QtCore.Qt.AlignCenter)
         self.ico.setObjectName("ico")
@@ -167,9 +166,11 @@ class Ui_MainWindow(object):
         self.layoutWidget.raise_()
         self.pushButton_6.raise_()
         MainWindow.setCentralWidget(self.centralwidget)
+        
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -183,5 +184,3 @@ class Ui_MainWindow(object):
         self.tableWidget.setColumnWidth(1, 170)
         self.tableWidget.setColumnWidth(2, 150)
         self.tableWidget.setColumnWidth(3, 10)
-        self.title.setText(_translate("MainWindow", "Холодное тело"))
-        self.artist.setText(_translate("MainWindow", "Король и Шут"))
