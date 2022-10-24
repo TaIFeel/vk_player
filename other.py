@@ -6,6 +6,7 @@ from PyQt5.QtCore import QPropertyAnimation
 import global_variable as gv
 import json
 import time
+import requests
 
 
 class other(QThread):
@@ -42,6 +43,18 @@ class other(QThread):
         self.update_play_data.emit(int(self.table_item))
         self.played_id = int(self.table_item)
 
+        a = open("player_cfg.json", "r")
+        data = json.load(a)
+
+        print(gv.tracks[int(self.table_item)][0])
+
+        requests.get(
+            "https://api.vk.com/method/audio.setBroadcast",
+            params=[('access_token', gv.token),
+                    ('audio', gv.tracks[int(self.table_item)][0]['content_id']),
+                    ('v', '5.89')]
+        ).json()
+
 
     def update(self, update):
         self.update_duration.emit(update)
@@ -54,6 +67,7 @@ class other(QThread):
 
     def update_volume(self, update):
         self.player.setVolume(update)
+
 
         json_file = open("player_cfg.json", "r")
         json_data = json.load(json_file)
@@ -76,5 +90,12 @@ class other(QThread):
                 
             self.player.setMedia(content)
             self.player.play()
+
+            requests.get(
+                "https://api.vk.com/method/audio.setBroadcast",
+                params=[('access_token', gv.token),
+                        ('audio', gv.tracks[int(self.played_id)][0]['content_id']),
+                        ('v', '5.89')]
+            ).json()
 
             self.update_other_data.emit(self.played_id)

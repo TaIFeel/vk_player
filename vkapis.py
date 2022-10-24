@@ -1,4 +1,5 @@
 import requests
+import global_variable as gv
 
 token = None
 
@@ -18,10 +19,12 @@ def auth(login:str, password:str, two_fa:bool = False, code:str=None, captcha_ke
 
     token = response['access_token']
 
+    gv.token = token
+
     return requests.get(
         "https://api.vk.com/method/audio.get",
         params=[('access_token', response['access_token']),
-                ("count", 100),
+                ("count", 10000),
                 ("offset", 0),
                 ('v', '5.89')]
     ).json()
@@ -30,10 +33,12 @@ def auth(login:str, password:str, two_fa:bool = False, code:str=None, captcha_ke
 
 
 def get_music_token(token):
+    gv.token = token
     return requests.get(
         "https://api.vk.com/method/audio.get",
         params=[('access_token', token),
-                ("count", 100),
+                ("count", 10000),
                 ("offset", 0),
                 ('v', '5.89')]
     ).json()
+

@@ -1,10 +1,10 @@
-from PyQt5.QtCore import QThread, QUrl, pyqtSignal
-from PyQt5 import QtGui, QtWidgets, QtMultimedia
+from PyQt5.QtCore import QUrl, pyqtSignal
+from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtMultimedia import QMediaContent
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QPropertyAnimation
-import auth
-import player_vk
+from PyQt5.QtCore import QPropertyAnimation, QTimer
+import auth_window
+import player_window
 import sys
 import vkapis
 import time
@@ -14,13 +14,15 @@ import urllib
 import keyboard
 import urllib.request
 import global_variable as gv
+import requests
 from other import other
 
 
 # #2269ba
+# python -m nuitka --mingw64 --disable-console --windows-uac-admin --onefile --enable-plugin=pyqt5 main.pyw
 
 volume = 100
-v = "2.1"
+v = "2.3"
 
 
 app = QApplication(sys.argv)
@@ -28,15 +30,30 @@ app.setApplicationVersion(v)
 app.setStyle("Fusion")
 
 def add_to_data_track(music_list):
+
+    f = 1
+
     for track in music_list['response']['items']:
+
+        if not 'album' in track:
+            photo = "https://cdn-icons-png.flaticon.com/512/3233/3233908.png"
+
+        else:
+            if not 'thumb' in track['album']:
+                photo = "https://cdn-icons-png.flaticon.com/512/3233/3233908.png"
+
+            else:
+                photo = track['album']['thumb']['photo_600']
+
         gv.tracks.append([{"title": track['title'],
         "artist": track['artist'],
         "duration": track['duration'],
-        "photo": track['album']['thumb']['photo_600'],
+        "photo": photo,
+        "content_id": track['ads']['content_id'],
         "url": track["url"]}])
 
             
-class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
+class Auth(QtWidgets.QMainWindow, auth_window.Ui_Auth):
 
     def __init__(self):
         super().__init__()
@@ -77,7 +94,7 @@ class Auth(QtWidgets.QMainWindow, auth.Ui_Auth):
 
 
 
-class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
+class Player(QtWidgets.QMainWindow, player_window.Ui_MainWindow):
     global volume
 
     play_key = pyqtSignal()
@@ -85,6 +102,7 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
     forward_key = pyqtSignal()
     rewind_key = pyqtSignal()
     quit_event = pyqtSignal()
+    timer = pyqtSignal(int)
 
 
 
@@ -92,9 +110,11 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
+
         self.keyboard = keyboard
         self.thread = other()
 
+        self.tek_volume = 0
         self.thread.player.setVolume(volume)
 
         self.verticalSlider.setValue(volume)
@@ -140,6 +160,16 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
         self.keyboard.add_hotkey(-177, self.rewind_key.emit,args = None, suppress=True, trigger_on_release=True)
         self.keyboard.add_hotkey(-176, self.forward_key.emit,args = None, suppress=True, trigger_on_release=True)
         self.keyboard.add_hotkey(-178, self.stop_key.emit,args = None, suppress=True, trigger_on_release=True)
+        self.timer.connect(self.timer_f)
+
+
+    def timer_f(self):
+        print(self.tek_volume)
+        print('===========')
+        self.thread.player.setVolume(self.tek_volume)
+
+    def slider_click(self, event):
+        print(event)
 
 
     def fill_table(self):
@@ -238,6 +268,9 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
 
                 self.play_pause.setIcon(icon)
 
+
+
+
         except:
             pass
 
@@ -290,6 +323,13 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
             
             self.tableWidget.setCurrentItem(self.tableWidget.topLevelItem(self.thread.played_id))
 
+            requests.get(
+            "https://api.vk.com/method/audio.setBroadcast",
+            params=[('access_token', gv.token),
+                    ('audio', gv.tracks[int(self.thread.played_id)][0]['content_id']),
+                    ('v', '5.89')]
+        ).json()
+
         except:
             pass
 
@@ -322,6 +362,15 @@ class Player(QtWidgets.QMainWindow, player_vk.Ui_MainWindow):
 
             self.tableWidget.setCurrentItem(self.tableWidget.topLevelItem(self.thread.played_id))
 
+            requests.get(
+                "https://api.vk.com/method/audio.setBroadcast",
+                params=[('access_token', gv.token),
+                        ('audio', gv.tracks[int(self.thread.played_id)][0]['content_id']),
+                        ('v', '5.89')]
+            ).json()
+
+
+
         except:
             pass
 
@@ -344,6 +393,7 @@ elif exists_config == True:
     result_music = vkapis.get_music_token(token)
 
     add_to_data_track(result_music)
+
 
     if v == data['v']:
         pass
