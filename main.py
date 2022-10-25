@@ -114,7 +114,6 @@ class Player(QtWidgets.QMainWindow, player_window.Ui_MainWindow):
         self.keyboard = keyboard
         self.thread = other()
 
-        self.tek_volume = 0
         self.thread.player.setVolume(volume)
 
         self.verticalSlider.setValue(volume)
